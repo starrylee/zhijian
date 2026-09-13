@@ -34,13 +34,132 @@
 
 > 无需安装任何数据库。后端使用 JSON 文件持久化（`server/data/`，首次启动自动创建），数据模型按 PG 兼容设计。
 
-安装 pnpm（任选其一）：
+### 环境安装指引
+
+以下按工具逐一说明安装方式（macOS / Windows / Linux），已安装的可直接跳过，装完后可用[环境检查清单](#环境检查清单)统一验证。
+
+#### Java
+
+后端要求 **JDK 21**（`server/pom.xml` 指定 `java.version=21`），推荐 Temurin（Eclipse Adoptium）发行版。
 
 ```bash
-corepack enable            # Node 自带，推荐
-# 或
-npm install -g pnpm
+# macOS（Homebrew）
+brew install --cask temurin@21
+# 让 JAVA_HOME 指向 21（写入 ~/.zshrc 后重开终端生效）
+echo 'export JAVA_HOME=$(/usr/libexec/java_home -v 21)' >> ~/.zshrc
 ```
+
+```bash
+# macOS / Linux：SDKMAN（适合多版本共存）
+curl -s "https://get.sdkman.io" | bash   # 安装后重开终端
+sdk install java 21-tem
+```
+
+```powershell
+# Windows
+winget install --id EclipseAdoptium.Temurin.21.JDK
+```
+
+```bash
+# Linux（Debian/Ubuntu）
+sudo apt install openjdk-21-jdk
+```
+
+> Windows 也可从 [Adoptium 官网](https://adoptium.net/) 下载 `.msi` 安装包，安装时勾选 "Set JAVA_HOME"。
+
+验证：`java -version` 输出 `21.x`。
+
+#### mvn
+
+后端构建要求 **Maven 3.6+**。
+
+```bash
+# macOS（Homebrew）
+brew install maven
+```
+
+```bash
+# macOS / Linux：SDKMAN
+sdk install maven
+```
+
+```powershell
+# Windows
+winget install --id Apache.Maven
+```
+
+```bash
+# Linux（Debian/Ubuntu）
+sudo apt install maven
+```
+
+> Windows 手动安装：从[官网](https://maven.apache.org/download.cgi)下载二进制包解压，将 `bin` 目录加入 `PATH`。
+
+验证：`mvn -version` 正常输出，且 **Java version 一行指向 21**（否则检查 `JAVA_HOME` 是否配置正确）。
+
+#### node
+
+前端要求 **Node.js ≥ 20.19**（Vite 8 要求），建议安装 **22 LTS**。
+
+```bash
+# macOS / Linux：nvm（推荐，方便切换版本）
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.3/install.sh | bash
+# 重开终端后，安装并启用最新 LTS：
+nvm install --lts
+nvm use --lts
+```
+
+```bash
+# macOS（Homebrew）
+brew install node@22
+```
+
+```powershell
+# Windows
+winget install --id OpenJS.NodeJS.LTS
+```
+
+> Windows 也可从 [Node.js 官网](https://nodejs.org/) 下载 LTS 安装包。
+
+验证：`node -v` 输出 ≥ `v20.19`。
+
+#### pnpm
+
+前端包管理要求 **pnpm 9+**（仓库使用 `pnpm-lock.yaml`），以下方式任选其一：
+
+```bash
+corepack enable              # 方式一：Node 自带（≥ 16.13），推荐
+npm install -g pnpm          # 方式二：npm 全局安装
+brew install pnpm            # 方式三：macOS（Homebrew）
+```
+
+> Windows 下运行 `corepack enable` 需要管理员权限的终端。
+
+验证：`pnpm -v` 正常输出。
+
+#### python3
+
+自动化测试要求 **Python ≥ 3.10**。
+
+```bash
+# macOS（Homebrew；系统自带版本可能过旧）
+brew install python@3.12
+```
+
+```powershell
+# Windows
+winget install --id Python.Python.3.12
+```
+
+```bash
+# Linux（Debian/Ubuntu）
+sudo apt install python3 python3-venv python3-pip
+```
+
+> - Windows 从 [Python 官网](https://www.python.org/downloads/) 下载安装包时，务必勾选 **Add python.exe to PATH**。
+> - Ubuntu/Debian 中 `python3-venv` 必须单独安装（虚拟环境被拆成独立包），否则第 3 步的 `python3 -m venv` 会失败。
+
+验证：`python3 --version` 输出 ≥ 3.10。
 
 ### 1. 启动后端（server/）
 
