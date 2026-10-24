@@ -59,10 +59,53 @@ Feature: 用户登录 # features/ui/user-login.feature:13
     When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗 # steps/user_login_ui_steps.py:141
     And 在"用户名"输入框输入 "ghostweaver"             # steps/user_login_ui_steps.py:153
     And 在"密码"输入框输入 "anything123"              # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                             # steps/user_login_ui_steps.py:165
-    Then 登录弹窗保持打开，弹窗内显示提示信息"用户名或密码错误"         # steps/user_login_ui_steps.py:246
-    And 提示信息不包含"用户不存在"字样                      # steps/user_login_ui_steps.py:253
-    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
+      Traceback (most recent call last):
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/behave/model.py", line 1329, in run
+          match.run(runner.context)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/behave/matchers.py", line 98, in run
+          self.func(context, *args, **kwargs)
+          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "steps/user_login_ui_steps.py", line 162, in step_fill_password
+          context.login_modal.fill_password(password)
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
+        File "/Users/nebula/repo/zhijian/test-automation/pages/login_modal.py", line 57, in fill_password
+          return self.fill(self.PASSWORD_INPUT, password)
+                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "/Users/nebula/repo/zhijian/test-automation/pages/base_page.py", line 94, in fill
+          self.wait.wait_for_element_visible(self.page, selector, timeout)
+          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "/Users/nebula/repo/zhijian/test-automation/core/wait_utils.py", line 37, in wait_for_element_visible
+          locator.wait_for(state="visible", timeout=WaitUtils._timeout(timeout))
+          ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py", line 17843, in wait_for
+          self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))
+          ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
+          return task.result()
+                 ~~~~~~~~~~~^^
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py", line 679, in wait_for
+          await self._frame.wait_for_selector(
+              self._selector, strict=True, timeout=timeout, state=state
+          )
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py", line 323, in wait_for_selector
+          await self._channel.send("waitForSelector", locals_to_params(locals()))
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py", line 61, in send
+          return await self._connection.wrap_api_call(
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          ...<2 lines>...
+          )
+          ^
+        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py", line 528, in wrap_api_call
+          raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
+      playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
+      Call log:
+        - waiting for locator("div.fixed.inset-0 form input[type=\"password\"]").first to be visible
+
+    And 点击"登 录"按钮                             # None
+    Then 登录弹窗保持打开，弹窗内显示提示信息"用户名或密码错误"         # None
+    And 提示信息不包含"用户不存在"字样                      # None
+    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # None
 
   @AC-3
   Scenario: AC-3 用户名留空时前端必填校验                 # features/ui/user-login.feature:74

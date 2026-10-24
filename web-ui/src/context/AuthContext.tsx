@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 
 /**
  * 当前登录用户（POST /api/v1/auth/login 成功响应，camelCase 报文）。
@@ -24,6 +24,19 @@ const AuthContext = createContext<AuthContextType>({
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+
+  /**
+   * 启动会话恢复（FT-01-US-03-M01）：应用加载时凭 Cookie sid 调
+   * GET /api/v1/auth/me 恢复登录态，刷新/重开浏览器不掉线。
+   * 401 是正常态（未登录游客），静默按 null 处理、不向用户报错；
+   * 恢复完成前 Navbar 短暂闪现"登录 / 注册"由 M02 消除。
+   */
+  useEffect(() => {
+    fetch("/api/v1/auth/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((user: User | null) => setCurrentUser(user))
+      .catch(() => setCurrentUser(null));
+  }, []);
 
   /**
    * 登录（FT-01-US-02）：调后端 /api/v1/auth/login，成功时服务端建立内存会话，

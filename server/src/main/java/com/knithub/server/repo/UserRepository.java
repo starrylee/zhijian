@@ -2,6 +2,7 @@ package com.knithub.server.repo;
 
 import com.knithub.server.domain.User;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -24,4 +25,22 @@ public interface UserRepository {
      * @return 命中的用户；不存在时为 empty
      */
     Optional<User> findByUsername(String username);
+
+    /**
+     * 按用户 id 查找用户。
+     *
+     * @param id 用户 id
+     * @return 命中的用户；不存在时为 empty
+     */
+    Optional<User> findById(Long id);
+
+    /**
+     * 追加保存用户（FT-01-US-01 注册写入路径；id 由调用方分配）。
+     */
+    void save(User user);
+
+    /**
+     * 全量查询（FT-01-US-01 注册分配自增 id 用）。
+     */
+    List<User> findAll();
 }

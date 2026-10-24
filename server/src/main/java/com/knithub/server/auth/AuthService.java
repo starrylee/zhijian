@@ -5,6 +5,9 @@ import com.knithub.server.repo.UserRepository;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.time.Instant;
+import java.util.Optional;
+
 /**
  * 鉴权业务层（技术方案第 4 节阶段 2~3）。
  *
@@ -44,6 +47,44 @@ public class AuthService {
     }
 
     /**
+     * 按会话 id 查询当前登录用户（FT-01-US-03-M01 会话恢复）。
+     *
+     * @return 有效会话对应的用户；sid 为空或会话不存在时为 empty
+     */
+    public Optional<User> me(String sid) {
+        return sessionManager.getUserId(sid)
+                .flatMap(userRepository::findById);
+    }
+
+    /**
+     * 注册并直接建立会话（FT-01-US-01 AC-1：注册成功即时登录态）。
+     *
+     * <p>账户资料按最小集生成：displayName 默认同用户名、avatar 为默认占位图。
+     */
+    public LoginResult register(String username, String password) {
+        if (userRepository.findByUsername(username).isPresent()) {
+            throw new UsernameTakenException();
+        }
+        User user = new User();
+        user.setId(nextId());
+        user.setUsername(username);
+        user.setPasswordHash(passwordEncoder.encode(password));
+        user.setDisplayName(username);
+        user.setAvatar("https://example.com/avatar-default.png");
+        user.setCreatedAt(Instant.now().toString());
+        userRepository.save(user);
+        String sid = sessionManager.createSession(user.getId());
+        return new LoginResult(user, sid);
+    }
+
+    private Long nextId() {
+        return userRepository.findAll().stream()
+                .map(User::getId)
+                .max(Long::compareTo)
+                .orElse(0L) + 1;
+    }
+
+    /**
      * 登录成功结果：用户实体（转 UserResponse 输出）+ 会话 id（设置 Cookie 用）。
      */
     public record LoginResult(User user, String sid) {
@@ -53,6 +94,13 @@ public class AuthService {
      * 凭据无效（用户名或密码错误）——Controller 层统一转 401 + 统一提示。
      */
     public static class InvalidCredentialsException extends RuntimeException {
+    }
+
+    /**
+     * 用户名已被占用（FT-01-US-01 AC-2）——Controller 层转 409 + 「用户名已被占用」。
+     * 唯一性口径：大小写不敏感（决策 1/4，由 Repository 层统一 lowercase 比对）。
+     */
+    public static class UsernameTakenException extends RuntimeException {
     }
 
     // TODO FT-01-US-01: register（唯一性校验 → 409 / BCrypt 哈希入库 / 注册即登录）

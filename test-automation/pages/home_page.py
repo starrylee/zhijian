@@ -29,6 +29,14 @@ class HomePage(BasePage):
     # 来源: web-ui/src/components/Navbar.tsx L99-107
     LOGOUT_BUTTON = 'header button:has-text("退出")'
 
+    # 登录态头像图（currentUser.avatar 出口；header 内唯一圆角头像 img）
+    # 来源: web-ui/src/components/Navbar.tsx L89-94
+    USER_AVATAR = "header img.rounded-full"
+
+    # 登录态用户入口链接（href=/users/{currentUser.username}——username 出口）
+    # 来源: web-ui/src/components/Navbar.tsx L85-98
+    USER_PROFILE_LINK = 'header a[href*="/users/"]'
+
     @property
     def url_path(self) -> str:
         """首页 URL 路径。"""
@@ -59,6 +67,25 @@ class HomePage(BasePage):
         self.assert_element_visible(self.USER_DISPLAY_NAME)
         self.assert_element_text(self.USER_DISPLAY_NAME, display_name)
         return self.assert_element_visible(self.LOGOUT_BUTTON)
+
+    def assert_user_profile_link(self, username: str) -> "HomePage":
+        """断言导航栏用户入口链接指向个人页 /users/{username}（AuthContext username 出口）。"""
+        href = self.get_attribute(self.USER_PROFILE_LINK, "href")
+        assert_that(href).described_as(
+            f"用户入口链接应指向个人页 /users/{username}，实际：{href}"
+        ).contains(f"/users/{username}")
+        return self
+
+    def assert_user_avatar(self, avatar_url_fragment: str) -> "HomePage":
+        """断言导航栏头像图 src 含 avatar URL 片段（AuthContext avatar 出口）。
+
+        以 URL 关键片段断言（种子头像为 unsplash 链接，query 参数允许变化）。
+        """
+        src = self.get_attribute(self.USER_AVATAR, "src")
+        assert_that(src).described_as(
+            f"头像图 src 应含 {avatar_url_fragment}，实际：{src}"
+        ).contains(avatar_url_fragment)
+        return self
 
     def assert_url_is(self, path: str) -> "HomePage":
         """断言当前 URL 等于 base_url + path（页面停留/导航目标断言）。"""
