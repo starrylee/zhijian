@@ -139,6 +139,7 @@
   },
   {
     "id": "p6",
+    "featuredInQueue": ["u1"],
     "name": "Cabled Forest Cardigan",
     "designer": "Aoife Brennan",
     "designerId": "d5",
@@ -219,6 +220,7 @@
   },
   {
     "id": "p9",
+    "featuredInQueue": ["u1"],
     "name": "Nordic Yoke Pullover",
     "designer": "Frida Holmberg",
     "designerId": "d1",
@@ -273,6 +275,7 @@
   },
   {
     "id": "p11",
+    "featuredInQueue": ["u1"],
     "name": "Woad & Rust Mittens",
     "designer": "Aoife Brennan",
     "designerId": "d5",

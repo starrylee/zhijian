@@ -158,8 +158,11 @@ export default function NotebookPage() {
   const userStash = yarnData.filter((y) => y.userId === pageUser.id);
   const followingUsers = users.filter((u) => pageUser.following.includes(u.id));
 
-  const queuePatternIds = ["p6", "p9", "p11"];
-  const queuePatterns = patterns.filter((p) => queuePatternIds.includes(p.id));
+  // 队列 mock 数据按用户过滤（featuredInQueue 字段），与项目/库存口径一致；
+  // 后端新注册用户（数字 id）不在 mock 数据中，队列自然为空（对齐 FT-01 兜底口径）
+  const queuePatterns = patterns.filter((p) =>
+    (p as { featuredInQueue?: string[] }).featuredInQueue?.includes(pageUser.id)
+  );
 
   // FT-02-US-02：四栏看板分栏口径（顺序 = 待开始 → 进行中 → 搁置中 → 已完成）
   const boardColumns: [string, string, typeof userProjects][] = [
