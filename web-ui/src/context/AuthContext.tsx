@@ -19,6 +19,16 @@ interface AuthContextType {
    */
   initialized: boolean;
   login: (username: string, password: string) => Promise<User | null>;
+  /**
+   * 注册并直接进入登录态（FT-01-US-01 AC-1）：调后端
+   * POST /api/v1/auth/register，成功时服务端建立会话（HttpOnly Cookie sid）。
+   * 失败返回错误信息（409 用户名已被占用 / 400 密码长度不足等），
+   * 由调用方展示；网络异常统一「注册失败，请稍后重试」。
+   */
+  register: (
+    username: string,
+    password: string
+  ) => Promise<{ user: User; error?: never } | { user?: never; error: string }>;
   /** 登出：销毁服务端会话并清前端态（异步，调用方无需等待）。 */
   logout: () => Promise<void>;
 }
@@ -27,6 +37,7 @@ export const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   initialized: false,
   login: async () => null,
+  register: async () => ({ error: "注册失败，请稍后重试" }),
   logout: async () => {},
 });
 
@@ -72,6 +83,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   /**
+   * 注册（FT-01-US-01）：调后端 /api/v1/auth/register，成功即登录态
+   * （服务端建立会话并下发 HttpOnly Cookie sid）。失败透出后端 message
+   * （409 用户名已被占用 / 400 校验提示），网络异常兜底统一提示。
+   */
+  async function register(
+    username: string,
+    password: string
+  ): Promise<{ user: User; error?: never } | { user?: never; error: string }> {
+    try {
+      const res = await fetch("/api/v1/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!res.ok) {
+        const message = await res
+          .json()
+          .then((body: { message?: string }) => body.message)
+          .catch(() => undefined);
+        return { error: message ?? "注册失败，请稍后重试" };
+      }
+      const user: User = await res.json();
+      setCurrentUser(user);
+      return { user };
+    } catch {
+      return { error: "注册失败，请稍后重试" };
+    }
+  }
+
+  /**
    * 登出（FT-01-US-04）：先调后端 POST /api/v1/auth/logout 销毁服务端会话
    * （HttpOnly Cookie sid 随响应清除），再清前端用户上下文——顺序保证登出
    * 返回后旧会话在服务端已失效，刷新不会再恢复登录态（AC-2 防假登出）。
@@ -87,7 +128,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, initialized, login, logout }}>
+    <AuthContext.Provider value={{ currentUser, initialized, login, register, logout }}>
       {children}
     </AuthContext.Provider>
   );

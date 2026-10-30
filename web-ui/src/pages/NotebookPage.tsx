@@ -3,6 +3,7 @@ import { useParams, Navigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import LoginModal from "../components/LoginModal";
 import NewProjectForm, { CreatedProject } from "../components/NewProjectForm";
+import ProjectMilestones, { MilestoneItem } from "../components/ProjectMilestones";
 import users from "../data/user-list.json";
 import projectsData from "../data/project-list.json";
 import yarnData from "../data/yarn-stash-list.json";
@@ -53,7 +54,7 @@ export default function NotebookPage() {
     dueDate: string;
     status: string;
     isPublic: boolean;
-    milestones: unknown[];
+    milestones: MilestoneItem[];
     createdAt: string;
     lastActiveAt: string;
   }
@@ -375,6 +376,19 @@ export default function NotebookPage() {
                               </h3>
                               <StatusPill status={p.status} />
                             </div>
+                            {/* FT-02-US-04：里程碑管理（本人项目专属） */}
+                            {isOwner && (
+                              <ProjectMilestones
+                                project={p}
+                                onProjectUpdated={(updated) =>
+                                  setBackendProjects((prev) =>
+                                    prev.map((item) =>
+                                      item.id === updated.id ? { ...item, ...updated } : item
+                                    )
+                                  )
+                                }
+                              />
+                            )}
                           </div>
                         ))}
                     </div>

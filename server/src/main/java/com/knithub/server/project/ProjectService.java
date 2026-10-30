@@ -42,6 +42,72 @@ public class ProjectService {
         return project;
     }
 
+    /**
+     * FT-02-US-04 AC-1 添加里程碑：按创建顺序追加到列表末尾，初始未完成。
+     * 项目不存在 → 404；不归属当前用户 → 403（复用 changeStatus 的越权口径）。
+     */
+    public Project addMilestone(Long userId, Long projectId, String name, String dueDate) {
+        Project project = requireOwnedProject(userId, projectId);
+        Milestone milestone = new Milestone();
+        milestone.setId(nextMilestoneId(project));
+        milestone.setName(name);
+        milestone.setDueDate(dueDate);
+        milestone.setCompleted(false);
+        milestone.setCreatedAt(Instant.now().toString());
+        project.getMilestones().add(milestone);
+        project.setLastActiveAt(Instant.now().toString());
+        projectRepository.save(project);
+        return project;
+    }
+
+    /**
+     * FT-02-US-04 AC-2 编辑里程碑：原位替换名称/预计日期，数组序（=创建顺序）不变。
+     * 里程碑不存在 → MilestoneNotFoundException（404）。
+     */
+    public Project editMilestone(Long userId, Long projectId, Long milestoneId,
+                                 String name, String dueDate) {
+        Project project = requireOwnedProject(userId, projectId);
+        Milestone milestone = project.getMilestones().stream()
+                .filter(m -> milestoneId.equals(m.getId()))
+                .findFirst()
+                .orElseThrow(MilestoneNotFoundException::new);
+        milestone.setName(name);
+        milestone.setDueDate(dueDate);
+        project.setLastActiveAt(Instant.now().toString());
+        projectRepository.save(project);
+        return project;
+    }
+
+    /**
+     * FT-02-US-04 AC-3/AC-6 手动完成/取消完成（双向翻转）：完成与否完全由用户手动决定。
+     */
+    public Project setMilestoneCompleted(Long userId, Long projectId, Long milestoneId, boolean completed) {
+        Project project = requireOwnedProject(userId, projectId);
+        Milestone milestone = project.getMilestones().stream()
+                .filter(m -> milestoneId.equals(m.getId()))
+                .findFirst()
+                .orElseThrow(MilestoneNotFoundException::new);
+        milestone.setCompleted(completed);
+        project.setLastActiveAt(Instant.now().toString());
+        projectRepository.save(project);
+        return project;
+    }
+
+    /**
+     * FT-02-US-04 AC-4 删除里程碑：原位移除，其余里程碑保持创建顺序（数组序天然不重排）。
+     */
+    public Project deleteMilestone(Long userId, Long projectId, Long milestoneId) {
+        Project project = requireOwnedProject(userId, projectId);
+        boolean removed = project.getMilestones()
+                .removeIf(m -> milestoneId.equals(m.getId()));
+        if (!removed) {
+            throw new MilestoneNotFoundException();
+        }
+        project.setLastActiveAt(Instant.now().toString());
+        projectRepository.save(project);
+        return project;
+    }
+
     /** 本人项目列表（AC-1：创建后出现在"项目"Tab）。 */
     public List<Project> listByUser(Long userId) {
         return projectRepository.findByUserId(userId);
@@ -69,6 +135,29 @@ public class ProjectService {
 
     /** 项目不归属当前会话用户 → 403（AC-3）。 */
     static class NotProjectOwnerException extends RuntimeException {
+    }
+
+    /** 里程碑不存在 → 404（FT-02-US-04）。 */
+    static class MilestoneNotFoundException extends RuntimeException {
+    }
+
+    /** 项目存在且归属当前用户 → 返回；否则 404/403（FT-02-US-03/04 共用口径）。 */
+    private Project requireOwnedProject(Long userId, Long projectId) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(ProjectNotFoundException::new);
+        if (!project.getUserId().equals(userId)) {
+            throw new NotProjectOwnerException();
+        }
+        return project;
+    }
+
+    /** 里程碑 id 项目内自增：取现有最大 id + 1（删除不回收，保持唯一即可）。 */
+    private long nextMilestoneId(Project project) {
+        return project.getMilestones().stream()
+                .map(Milestone::getId)
+                .filter(id -> id != null)
+                .max(Long::compareTo)
+                .orElse(0L) + 1;
     }
 
     private List<Milestone> buildMilestones(CreateProjectRequest request) {

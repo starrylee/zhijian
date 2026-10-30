@@ -61,6 +61,7 @@ function renderNotebookPage(
         currentUser,
         initialized: true,
         login: async () => null,
+      register: async () => ({ error: "未实现" }),
         logout: async () => {},
       }}
     >

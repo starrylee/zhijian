@@ -1,7 +1,10 @@
 package com.knithub.server.project;
 
 import com.knithub.server.auth.SessionManager;
+import com.knithub.server.project.dto.AddMilestoneRequest;
 import com.knithub.server.project.dto.CreateProjectRequest;
+import com.knithub.server.project.dto.EditMilestoneRequest;
+import com.knithub.server.project.dto.SetMilestoneCompletedRequest;
 import com.knithub.server.project.dto.ProjectResponse;
 import com.knithub.server.project.dto.UpdateStatusRequest;
 import jakarta.validation.Valid;
@@ -66,6 +69,52 @@ public class ProjectController {
                 ProjectResponse.from(projectService.changeStatus(userId, id, request.getStatus())));
     }
 
+    /** FT-02-US-04 AC-1：添加里程碑（名称必填、预计日期可选）。 */
+    @PostMapping("/{id}/milestones")
+    public ResponseEntity<ProjectResponse> addMilestone(
+            @CookieValue(value = "sid", required = false) String sid,
+            @PathVariable Long id,
+            @Valid @RequestBody AddMilestoneRequest request) {
+        Long userId = requireUserId(sid);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ProjectResponse.from(
+                        projectService.addMilestone(userId, id, request.getName(), request.getDueDate())));
+    }
+
+    /** FT-02-US-04 AC-2：编辑里程碑（名称/预计日期）。 */
+    @PatchMapping("/{id}/milestones/{milestoneId}")
+    public ResponseEntity<ProjectResponse> editMilestone(
+            @CookieValue(value = "sid", required = false) String sid,
+            @PathVariable Long id,
+            @PathVariable Long milestoneId,
+            @Valid @RequestBody EditMilestoneRequest request) {
+        Long userId = requireUserId(sid);
+        return ResponseEntity.ok(ProjectResponse.from(projectService.editMilestone(
+                userId, id, milestoneId, request.getName(), request.getDueDate())));
+    }
+
+    /** FT-02-US-04 AC-3/AC-6：手动完成 / 取消完成里程碑（双向翻转）。 */
+    @PatchMapping("/{id}/milestones/{milestoneId}/completed")
+    public ResponseEntity<ProjectResponse> setMilestoneCompleted(
+            @CookieValue(value = "sid", required = false) String sid,
+            @PathVariable Long id,
+            @PathVariable Long milestoneId,
+            @Valid @RequestBody SetMilestoneCompletedRequest request) {
+        Long userId = requireUserId(sid);
+        return ResponseEntity.ok(ProjectResponse.from(projectService.setMilestoneCompleted(
+                userId, id, milestoneId, request.getCompleted())));
+    }
+
+    /** FT-02-US-04 AC-4：删除里程碑（轻量操作，无二次确认——AskMe 未要求）。 */
+    @org.springframework.web.bind.annotation.DeleteMapping("/{id}/milestones/{milestoneId}")
+    public ResponseEntity<ProjectResponse> deleteMilestone(
+            @CookieValue(value = "sid", required = false) String sid,
+            @PathVariable Long id,
+            @PathVariable Long milestoneId) {
+        Long userId = requireUserId(sid);
+        return ResponseEntity.ok(ProjectResponse.from(projectService.deleteMilestone(userId, id, milestoneId)));
+    }
+
     private Long requireUserId(String sid) {
         return sessionManager.getUserId(sid)
                 .orElseThrow(NotLoggedInException::new);
@@ -86,6 +135,13 @@ public class ProjectController {
     public ResponseEntity<Map<String, String>> handleNotProjectOwner(ProjectService.NotProjectOwnerException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
                 .body(Map.of("message", "无权操作该项目"));
+    }
+
+    /** 里程碑不存在 → 404（FT-02-US-04）。 */
+    @ExceptionHandler(ProjectService.MilestoneNotFoundException.class)
+    public ResponseEntity<Map<String, String>> handleMilestoneNotFound(ProjectService.MilestoneNotFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("message", "里程碑不存在"));
     }
 
     /** 请求参数校验失败 → 400 + 第一条校验消息（AC-3/AC-4，与 FT-01 约定一致）。 */

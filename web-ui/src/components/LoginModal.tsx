@@ -14,7 +14,7 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
-  const { login } = useAuth();
+  const { login, register } = useAuth();
   const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
@@ -23,17 +23,34 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (isRegister) {
-      setError("注册功能即将上线，请先用演示账号登录体验");
-      return;
-    }
-    // AC-3（决策 7）：空输入前端必填校验，不向后端发出登录请求
+    // 空输入前端必填校验（登录 FT-01-US-02 AC-3 决策 7 / 注册同口径），不向后端发请求
     if (!username.trim()) {
       setError("请输入用户名");
       return;
     }
     if (!password) {
       setError("请输入密码");
+      return;
+    }
+    if (isRegister) {
+      // FT-01-US-01 AC-3：密码 <6 位前端拦截（与后端 400 校验双保险）
+      if (password.length < 6) {
+        setError("密码至少需要 6 位");
+        return;
+      }
+      const result = await register(username.trim(), password);
+      if (result.user) {
+        // AC-1：注册成功即时进入登录态，续接口径与登录一致
+        onClose();
+        if (onSuccess) {
+          onSuccess(result.user);
+        } else {
+          navigate(`/users/${result.user.username}`);
+        }
+      } else {
+        // AC-2：409「用户名已被占用」等后端提示透出，表单保留已填内容
+        setError(result.error);
+      }
       return;
     }
     const user: User | null = await login(username, password);
@@ -83,10 +100,11 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>
+            <label htmlFor="login-username" className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>
               用户名
             </label>
             <input
+              id="login-username"
               type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
@@ -100,10 +118,11 @@ export default function LoginModal({ onClose, onSuccess }: LoginModalProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>
+            <label htmlFor="login-password" className="block text-sm font-medium mb-1" style={{ color: "var(--foreground)" }}>
               密码
             </label>
             <input
+              id="login-password"
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
