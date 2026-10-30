@@ -37,6 +37,10 @@ class HomePage(BasePage):
     # 来源: web-ui/src/components/Navbar.tsx L85-98
     USER_PROFILE_LINK = 'header a[href*="/users/"]'
 
+    # 导航栏"我的项目"链接（authRequired 入口：未登录点击弹登录弹窗）
+    # 来源: web-ui/src/components/Navbar.tsx navLinks（authRequired: true）+ handleProjectsClick
+    NAV_MY_PROJECTS_LINK = 'header nav a:has-text("我的项目")'
+
     @property
     def url_path(self) -> str:
         """首页 URL 路径。"""
@@ -49,6 +53,14 @@ class HomePage(BasePage):
         """点击导航栏"登录 / 注册"按钮，打开登录弹窗。"""
         self.click(self.LOGIN_ENTRY_BUTTON)
         return self
+
+    def click_my_projects_link(self) -> "HomePage":
+        """点击导航栏"我的项目"链接（authRequired 入口）。
+
+        未登录态下前端 handleProjectsClick 会 preventDefault 并弹登录弹窗，
+        不发生路由跳转（FT-01-US-05 AC-1）。
+        """
+        return self.click(self.NAV_MY_PROJECTS_LINK)
 
     def click_logout(self) -> "HomePage":
         """点击导航栏登录态的"退出"按钮。"""

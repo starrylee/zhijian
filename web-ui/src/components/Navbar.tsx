@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, User } from "../context/AuthContext";
 import LoginModal from "./LoginModal";
 
 const navLinks = [
@@ -17,11 +17,26 @@ export default function Navbar() {
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  // FT-01-US-05 操作触发登录：记录弹窗来源对应的待续接操作；
+  // null = 主动登录（成功后走 LoginModal 默认跳个人页）
+  const [pendingAction, setPendingAction] = useState<((user: User) => void) | null>(null);
+
+  function closeLogin() {
+    setShowLogin(false);
+    setPendingAction(null);
+  }
+
+  function openLoginForAction(action: (user: User) => void) {
+    setPendingAction(() => action);
+    setShowLogin(true);
+  }
 
   function handleProjectsClick(e: React.MouseEvent) {
     if (!currentUser) {
       e.preventDefault();
-      setShowLogin(true);
+      // FT-01-US-05 AC-1/AC-2：未登录点击"我的项目"弹登录窗；
+      // 登录成功后续接原操作——进入"我的项目"
+      openLoginForAction((user) => navigate(`/users/${user.username}`));
     } else {
       navigate(`/users/${currentUser.username}`);
     }
@@ -110,7 +125,10 @@ export default function Navbar() {
               </div>
             ) : initialized ? (
               <button
-                onClick={() => setShowLogin(true)}
+                onClick={() => {
+                  setPendingAction(null);
+                  setShowLogin(true);
+                }}
                 className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
                 style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
               >
@@ -155,7 +173,9 @@ export default function Navbar() {
         )}
       </header>
 
-      {showLogin && <LoginModal onClose={() => setShowLogin(false)} />}
+      {showLogin && (
+        <LoginModal onClose={closeLogin} onSuccess={pendingAction ?? undefined} />
+      )}
     </>
   );
 }
