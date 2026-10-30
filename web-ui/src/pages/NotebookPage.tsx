@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, Navigate, Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import LoginModal from "../components/LoginModal";
+import NewProjectForm, { CreatedProject } from "../components/NewProjectForm";
 import users from "../data/user-list.json";
 import projectsData from "../data/project-list.json";
 import yarnData from "../data/yarn-stash-list.json";
@@ -13,11 +15,13 @@ const statusLabels: Record<string, string> = {
   "in-progress": "进行中",
   completed: "已完成",
   queued: "队列中",
+  todo: "待开始",
 };
 const statusColors: Record<string, string> = {
   "in-progress": "#C9973A",
   completed: "#4E7251",
   queued: "#7A6655",
+  todo: "#8B7355",
 };
 
 export default function NotebookPage() {
@@ -28,6 +32,10 @@ export default function NotebookPage() {
   const [newProjectPatternId, setNewProjectPatternId] = useState<string | null>(
     searchParams.get("new")
   );
+  // FT-02-US-01：新建项目入口（已登录开表单，未登录引导登录后续接）
+  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showLoginForCreate, setShowLoginForCreate] = useState(false);
+  const [createdProjects, setCreatedProjects] = useState<CreatedProject[]>([]);
 
   // FT-01 兜底（PO 裁定 2026-09-07）：后端真实账号（种子 zhinv / 新注册用户）不在 mock
   // user-list.json 中，个人页以当前登录用户的身份兜底渲染，项目/库存等列表自然为空，
@@ -66,6 +74,15 @@ export default function NotebookPage() {
   // FT-01-US-02: 登录态改由后端会话供给（id 为 number 自增），mock 数据仍为字符串 id
   // 体系——owner 判定用 username（两个世界一致的主键）保持行为不变
   const isOwner = currentUser?.username === pageUser.username;
+
+  // FT-02-US-01 AC-5：未登录点击入口 → 登录弹窗（成功后续接打开表单）
+  function handleCreateEntryClick() {
+    if (currentUser) {
+      setShowCreateForm(true);
+    } else {
+      setShowLoginForCreate(true);
+    }
+  }
   const userProjects = projectsData.filter((p) => p.userId === pageUser.id);
   const inProgress = userProjects.filter((p) => p.status === "in-progress");
   const completed = userProjects.filter((p) => p.status === "completed");
@@ -181,6 +198,61 @@ export default function NotebookPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         {tab === "projects" && (
           <div>
+            <div className="flex justify-end mb-6">
+              <button
+                onClick={handleCreateEntryClick}
+                className="rounded-lg px-4 py-2 text-sm font-semibold"
+                style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
+              >
+                新建项目
+              </button>
+            </div>
+            {showCreateForm && (
+              <div
+                className="rounded-xl p-6 mb-6"
+                style={{ background: "var(--card)", border: "1.5px solid var(--border)" }}
+              >
+                <h2 className="text-xl font-bold mb-4" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
+                  新建项目
+                </h2>
+                <NewProjectForm
+                  onSuccess={(project) => {
+                    setCreatedProjects((prev) => [project, ...prev]);
+                    setShowCreateForm(false);
+                  }}
+                />
+              </div>
+            )}
+            {createdProjects.length > 0 && (
+              <section className="mb-10">
+                <h2 className="text-xl font-bold mb-4" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
+                  待开始
+                </h2>
+                <div className="space-y-4">
+                  {createdProjects.map((project) => (
+                    <div
+                      key={project.id}
+                      className="rounded-xl p-4 flex items-center justify-between"
+                      style={{ background: "var(--card)", border: "1.5px solid var(--border)" }}
+                    >
+                      <h3 className="font-bold text-base" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
+                        {project.name}
+                      </h3>
+                      <span
+                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
+                        style={{
+                          background: statusColors.todo + "22",
+                          color: statusColors.todo,
+                          border: `1px solid ${statusColors.todo}44`,
+                        }}
+                      >
+                        {statusLabels.todo}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
             {newProjectPatternId && (
               <NewProjectBanner
                 patternId={newProjectPatternId}
@@ -356,6 +428,13 @@ export default function NotebookPage() {
           </div>
         )}
       </div>
+
+      {showLoginForCreate && (
+        <LoginModal
+          onClose={() => setShowLoginForCreate(false)}
+          onSuccess={() => setShowCreateForm(true)}
+        />
+      )}
     </div>
   );
 }

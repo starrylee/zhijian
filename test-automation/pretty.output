@@ -1,186 +1,122 @@
-@FT-01-US-02 @layer:e2e
-Feature: 用户登录 # features/ui/user-login.feature:13
-  作为一个已注册的织友，
-  我想要用用户名和密码登录，
-  以便进入我的个人空间并持续使用 KnitHub。
-  Background:   # features/ui/user-login.feature:19
+@FT-02-US-01 @layer:api
+Feature: 创建编织项目 - API 层 # features/api/project-create.api.feature:3
+  作为一个已登录的织友用户，
+  我想要创建一个新的编织项目（填写名称与预计完成日期，可选填里程碑），
+  以便为每段编织旅程建立档案，后续在看板上追踪它的状态。
+  Background:   # features/api/project-create.api.feature:16
 
-  @AC-1
-  Scenario: AC-1 正确凭据登录成功建立会话                         # features/ui/user-login.feature:27
-    Given 系统中存在如下注册用户：                                # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                          # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗         # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "woolenwhimsy"                    # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "knit123"                          # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                                     # steps/user_login_ui_steps.py:165
-    Then 登录弹窗关闭，标题"欢迎回来"不再显示                          # steps/user_login_ui_steps.py:187
-    And 导航栏不再显示"登录 / 注册"按钮，改为显示用户名"Sarah Chen"与"退出"按钮 # steps/user_login_ui_steps.py:194
-    And 页面导航至个人页 "/users/woolenwhimsy"，头部展示如下信息：      # steps/user_login_ui_steps.py:207
-      | 字段   | 值             |
-      | 显示名称 | Sarah Chen    |
-      | 用户名  | @woolenwhimsy |
+  @api:contract @AC-1
+  Scenario: AC-1 接口契约 - 登录用户创建项目成功初始状态为待开始并出现在本人列表  # features/api/project-create.api.feature:23
+    Given 请求基础地址为 "http://localhost:8080"           # steps/user_login_api_steps.py:46
+    Given 用户 "woolenwhimsy" 使用密码 "knit123" 已登录      # steps/project_create_api_steps.py:32
+    When 发送 POST 请求 "/api/v1/projects"，请求体如下        # steps/user_login_api_steps.py:122
+      """
+      {
+        "name": "祖母的生日披肩",
+        "dueDate": "2026-10-31"
+      }
+      """
+    Then 响应状态码为 201                                 # steps/user_login_api_steps.py:135
+    And 响应中项目名称为 "祖母的生日披肩"                          # steps/project_create_api_steps.py:62
+    And 响应中项目状态为 "todo"                             # steps/project_create_api_steps.py:68
+    And 响应中里程碑列表为空                                  # steps/project_create_api_steps.py:74
+    When 发送 GET 请求 "/api/v1/projects"               # steps/project_create_api_steps.py:50
+    Then 响应状态码为 200                                 # steps/user_login_api_steps.py:135
+    And 本人项目列表包含名称为 "祖母的生日披肩" 且状态为 "todo" 的项目       # steps/project_create_api_steps.py:112
 
-  @AC-1
-  Scenario: AC-1 用户名大小写变体登录成功                                                        # features/ui/user-login.feature:41
-    Given 系统中存在如下注册用户：                                                               # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                                                         # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗                                        # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "WoolenWhimsy"                                                   # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "knit123"                                                         # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                                                                    # steps/user_login_ui_steps.py:165
-    Then 登录弹窗关闭，标题"欢迎回来"不再显示                                                         # steps/user_login_ui_steps.py:187
-    And 导航栏改为显示用户名"Sarah Chen"与"退出"按钮                                                # steps/user_login_ui_steps.py:201
-    And 页面导航至个人页 "/users/woolenwhimsy"（存储态用户名），头部显示名称"Sarah Chen"与用户名"@woolenwhimsy" # steps/user_login_ui_steps.py:228
+  @api:contract @AC-2
+  Scenario: AC-2 接口契约 - 携带里程碑创建成功按顺序排列且均未完成    # features/api/project-create.api.feature:44
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 用户 "woolenwhimsy" 使用密码 "knit123" 已登录 # steps/project_create_api_steps.py:32
+    When 发送 POST 请求 "/api/v1/projects"，请求体如下   # steps/user_login_api_steps.py:122
+      """
+      {
+        "name": "圣诞袜",
+        "dueDate": "2026-12-24",
+        "milestones": [
+          {"name": "织袜筒", "dueDate": "2026-12-01"},
+          {"name": "收口"}
+        ]
+      }
+      """
+    Then 响应状态码为 201                            # steps/user_login_api_steps.py:135
+    And 响应中项目名称为 "圣诞袜"                         # steps/project_create_api_steps.py:62
+    And 响应中里程碑列表为                              # steps/project_create_api_steps.py:80
+      | name | dueDate    | completed |
+      | 织袜筒  | 2026-12-01 | false     |
+      | 收口   |            | false     |
 
-  @AC-2
-  Scenario: AC-2 密码错误时显示统一错误提示                # features/ui/user-login.feature:52
-    Given 系统中存在如下注册用户：                        # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                  # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗 # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "woolenwhimsy"            # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "wool456"                  # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                             # steps/user_login_ui_steps.py:165
-    Then 登录弹窗保持打开，弹窗内显示提示信息"用户名或密码错误"         # steps/user_login_ui_steps.py:246
-    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
+  @api:error @AC-3
+  Scenario: AC-3 错误码 - 项目名称为空返回 400 提示必填       # features/api/project-create.api.feature:68
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 用户 "woolenwhimsy" 使用密码 "knit123" 已登录 # steps/project_create_api_steps.py:32
+    When 发送 POST 请求 "/api/v1/projects"，请求体如下   # steps/user_login_api_steps.py:122
+      """
+      {
+        "name": "",
+        "dueDate": "2026-11-15"
+      }
+      """
+    Then 响应状态码为 400                            # steps/user_login_api_steps.py:135
+    And 返回如下错误信息                               # steps/user_login_api_steps.py:165
+      """
+      {
+        "message": "请填写项目名称"
+      }
+      """
+    When 发送 GET 请求 "/api/v1/projects"          # steps/project_create_api_steps.py:50
+    Then 本人项目列表不包含名称为 "祖母的生日披肩" 的项目            # steps/project_create_api_steps.py:123
 
-  @AC-2
-  Scenario: AC-2 用户名不存在时提示与密码错误一致             # features/ui/user-login.feature:62
-    Given 系统中存在如下注册用户：                        # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                  # steps/user_login_ui_steps.py:97
-    Given 用户名 "ghostweaver" 从未注册              # steps/user_login_ui_steps.py:121
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗 # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "ghostweaver"             # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "anything123"              # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                             # steps/user_login_ui_steps.py:165
-    Then 登录弹窗保持打开，弹窗内显示提示信息"用户名或密码错误"         # steps/user_login_ui_steps.py:246
-    And 提示信息不包含"用户不存在"字样                      # steps/user_login_ui_steps.py:253
-    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
+  @api:error @AC-3
+  Scenario: AC-3 错误码 - 未选择预计完成日期返回 400 提示必填    # features/api/project-create.api.feature:89
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 用户 "woolenwhimsy" 使用密码 "knit123" 已登录 # steps/project_create_api_steps.py:32
+    When 发送 POST 请求 "/api/v1/projects"，请求体如下   # steps/user_login_api_steps.py:122
+      """
+      {
+        "name": "围巾"
+      }
+      """
+    Then 响应状态码为 400                            # steps/user_login_api_steps.py:135
+    And 返回如下错误信息                               # steps/user_login_api_steps.py:165
+      """
+      {
+        "message": "请选择预计完成日期"
+      }
+      """
 
-  @AC-3
-  Scenario: AC-3 用户名留空时前端必填校验                 # features/ui/user-login.feature:74
-    Given 系统中存在如下注册用户：                        # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                  # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗 # steps/user_login_ui_steps.py:141
-    And "用户名"输入框保持留空                          # steps/user_login_ui_steps.py:172
-    And 在"密码"输入框输入 "knit123"                  # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                             # steps/user_login_ui_steps.py:165
-    Then 登录弹窗保持打开，弹窗内显示提示信息"请输入用户名"           # steps/user_login_ui_steps.py:246
-    And 未向后端发出登录请求                            # steps/user_login_ui_steps.py:266
-    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
+  @api:error @AC-4
+  Scenario: AC-4 错误码 - 里程碑名称为空返回 400 提示必填      # features/api/project-create.api.feature:109
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 用户 "woolenwhimsy" 使用密码 "knit123" 已登录 # steps/project_create_api_steps.py:32
+    When 发送 POST 请求 "/api/v1/projects"，请求体如下   # steps/user_login_api_steps.py:122
+      """
+      {
+        "name": "圣诞袜",
+        "dueDate": "2026-12-24",
+        "milestones": [
+          {"name": ""}
+        ]
+      }
+      """
+    Then 响应状态码为 400                            # steps/user_login_api_steps.py:135
+    And 返回如下错误信息                               # steps/user_login_api_steps.py:165
+      """
+      {
+        "message": "里程碑名称必填"
+      }
+      """
 
-  @AC-3
-  Scenario: AC-3 密码留空时前端必填校验                  # features/ui/user-login.feature:85
-    Given 系统中存在如下注册用户：                        # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                  # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗 # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "woolenwhimsy"            # steps/user_login_ui_steps.py:153
-    And "密码"输入框保持留空                           # steps/user_login_ui_steps.py:178
-    And 点击"登 录"按钮                             # steps/user_login_ui_steps.py:165
-    Then 登录弹窗保持打开，弹窗内显示提示信息"请输入密码"            # steps/user_login_ui_steps.py:246
-    And 未向后端发出登录请求                            # steps/user_login_ui_steps.py:266
-    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
-
-@FT-01-US-04 @layer:e2e
-Feature: 用户登出 # features/ui/user-logout.feature:15
-  作为一个已登录的织友，
-  我想要主动退出登录，
-  以便在共用设备上使用后保护我的账号安全。
-  Background:   # features/ui/user-logout.feature:21
-
-  @AC-1
-  Scenario: AC-1 点击"退出"后界面恢复未登录态                                  # features/ui/user-logout.feature:29
-    Given 系统中存在如下注册用户：                                            # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    Given 用户已通过 UI 登录为 "woolenwhimsy"，导航栏显示用户名"Sarah Chen"与"退出"按钮 # steps/user_logout_ui_steps.py:33
-    When 用户点击导航栏的"退出"按钮                                           # steps/user_logout_ui_steps.py:61
-    Then 导航栏不再显示"Sarah Chen"与"退出"按钮，恢复显示"登录 / 注册"按钮               # steps/user_logout_ui_steps.py:75
-    And 前端已向后端发出登出请求 "/api/v1/auth/logout"                        # steps/user_logout_ui_steps.py:82
-
-  @AC-2
-  Scenario: AC-2 登出为真实销毁会话而非仅清前端态                                 # features/ui/user-logout.feature:38
-    Given 系统中存在如下注册用户：                                            # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    Given 用户已通过 UI 登录为 "woolenwhimsy"，导航栏显示用户名"Sarah Chen"与"退出"按钮 # steps/user_logout_ui_steps.py:33
-    When 用户点击导航栏的"退出"按钮                                           # steps/user_logout_ui_steps.py:61
-    And 用户刷新页面                                                    # steps/navbar_no_flicker_steps.py:53
-    Then 导航栏恢复显示"登录 / 注册"按钮（旧会话已失效，刷新不再恢复登录态）                     # steps/user_logout_ui_steps.py:96
-
-@FT-01-US-03-M01 @layer:e2e
-Feature: 会话恢复骨架 # features/ui/session-restore.feature:14
-  作为一个已登录的织友，
-  我想要刷新页面或重开浏览器后，页面加载时自动恢复我的登录态，
-  以便不被打断地持续使用 KnitHub，无需重新输入用户名密码。
-  Background:   # features/ui/session-restore.feature:20
-
-  @AC-1
-  Scenario: AC-1 登录后连续刷新页面 3 次均保持登录态              # features/ui/session-restore.feature:29
-    Given 系统中存在如下注册用户：                            # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                      # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗     # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "woolenwhimsy"                # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "knit123"                      # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                                 # steps/user_login_ui_steps.py:165
-    Then 登录弹窗关闭，标题"欢迎回来"不再显示                      # steps/user_login_ui_steps.py:187
-    When 用户连续刷新页面 3 次                             # steps/session_restore_ui_steps.py:28
-    Then 每次页面加载完成后导航栏均显示用户名"Sarah Chen"，全程未出现登录弹窗 # steps/session_restore_ui_steps.py:92
-
-  @AC-2
-  Scenario: AC-2 重开浏览器后保持登录态                      # features/ui/session-restore.feature:43
-    Given 系统中存在如下注册用户：                            # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                      # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗     # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "woolenwhimsy"                # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "knit123"                      # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                                 # steps/user_login_ui_steps.py:165
-    Then 登录弹窗关闭，标题"欢迎回来"不再显示                      # steps/user_login_ui_steps.py:187
-    When 用户关闭浏览器                                  # steps/session_restore_ui_steps.py:56
-    And 重新打开浏览器访问首页                               # steps/session_restore_ui_steps.py:68
-    Then 直接处于登录态，导航栏显示用户名"Sarah Chen"，无需重新输入用户名密码 # steps/session_restore_ui_steps.py:84
-
-  @AC-3
-  Scenario: AC-3 登录态下 AuthContext 恢复当前用户上下文（username/displayName/avatar）  # features/ui/session-restore.feature:57
-    Given 系统中存在如下注册用户：                                                    # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                                              # steps/user_login_ui_steps.py:97
-    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗                             # steps/user_login_ui_steps.py:141
-    And 在"用户名"输入框输入 "woolenwhimsy"                                        # steps/user_login_ui_steps.py:153
-    And 在"密码"输入框输入 "knit123"                                              # steps/user_login_ui_steps.py:159
-    And 点击"登 录"按钮                                                         # steps/user_login_ui_steps.py:165
-    Then 登录弹窗关闭，标题"欢迎回来"不再显示                                              # steps/user_login_ui_steps.py:187
-    When 用户连续刷新页面 1 次                                                     # steps/session_restore_ui_steps.py:28
-    Then 每次页面加载完成后导航栏均显示用户名"Sarah Chen"，全程未出现登录弹窗                         # steps/session_restore_ui_steps.py:92
-    And 刷新恢复后导航栏展示当前用户上下文：                                                # steps/session_restore_ui_steps.py:156
-      | 字段   | 值                                |
-      | 显示名称 | Sarah Chen                       |
-      | 用户名  | woolenwhimsy                     |
-      | 头像   | photo-1438761681033-6461ffad8d80 |
-
-  @AC-3
-  Scenario: AC-3 未登录访问首页为游客态且无任何错误提示              # features/ui/session-restore.feature:75
-    Given 系统中存在如下注册用户：                            # steps/user_login_ui_steps.py:56
-      | username     | password | displayName |
-      | woolenwhimsy | knit123  | Sarah Chen  |
-    And 用户处于未登录状态，正在浏览首页 "/"                      # steps/user_login_ui_steps.py:97
-    When 页面重新加载（未登录，/me 返回 401）                   # steps/session_restore_ui_steps.py:113
-    Then 导航栏显示"登录 / 注册"按钮（游客态，currentUser 为 null） # steps/session_restore_ui_steps.py:130
-    And 页面无任何错误提示（401 静默处理，未向用户报错）                # steps/session_restore_ui_steps.py:136
+  @api:error @AC-5
+  Scenario: AC-5 错误码 - 未登录创建项目返回 401         # features/api/project-create.api.feature:133
+    Given 请求基础地址为 "http://localhost:8080"    # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                      # steps/user_login_api_steps.py:59
+    When 发送 POST 请求 "/api/v1/projects"，请求体如下 # steps/user_login_api_steps.py:122
+      """
+      {
+        "name": "祖母的生日披肩",
+        "dueDate": "2026-10-31"
+      }
+      """
+    Then 响应状态码为 401                          # steps/user_login_api_steps.py:135
 
