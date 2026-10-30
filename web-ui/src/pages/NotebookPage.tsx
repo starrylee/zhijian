@@ -11,17 +11,24 @@ import forumPosts from "../data/forum-post-list.json";
 
 type Tab = "projects" | "queue" | "stash" | "following";
 
+// FT-02-US-02：视图切换（默认列表，不记忆上次选择——AskMe 决策 1 衍生小项）
+type ViewMode = "list" | "board";
+
+// FT-02-US-02 四栏看板状态口径（四栏名称为 AskMe 已确认决策；
+// "搁置中"的 status 值草拟为 "on-hold"，TODO: AI 草拟，待与 PO 核实）
 const statusLabels: Record<string, string> = {
   "in-progress": "进行中",
   completed: "已完成",
   queued: "队列中",
   todo: "待开始",
+  "on-hold": "搁置中",
 };
 const statusColors: Record<string, string> = {
   "in-progress": "#C9973A",
   completed: "#4E7251",
   queued: "#7A6655",
   todo: "#8B7355",
+  "on-hold": "#6B5B7A",
 };
 
 export default function NotebookPage() {
@@ -36,6 +43,8 @@ export default function NotebookPage() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [showLoginForCreate, setShowLoginForCreate] = useState(false);
   const [createdProjects, setCreatedProjects] = useState<CreatedProject[]>([]);
+  // FT-02-US-02：项目 Tab 视图切换（默认列表视图）
+  const [viewMode, setViewMode] = useState<ViewMode>("list");
 
   // FT-01 兜底（PO 裁定 2026-09-07）：后端真实账号（种子 zhinv / 新注册用户）不在 mock
   // user-list.json 中，个人页以当前登录用户的身份兜底渲染，项目/库存等列表自然为空，
@@ -84,7 +93,9 @@ export default function NotebookPage() {
     }
   }
   const userProjects = projectsData.filter((p) => p.userId === pageUser.id);
+  const todo = userProjects.filter((p) => p.status === "todo");
   const inProgress = userProjects.filter((p) => p.status === "in-progress");
+  const onHold = userProjects.filter((p) => p.status === "on-hold");
   const completed = userProjects.filter((p) => p.status === "completed");
   const userStash = yarnData.filter((y) => y.userId === pageUser.id);
   const followingUsers = users.filter((u) => pageUser.following.includes(u.id));
@@ -92,6 +103,13 @@ export default function NotebookPage() {
   const queuePatternIds = ["p6", "p9", "p11"];
   const queuePatterns = patterns.filter((p) => queuePatternIds.includes(p.id));
 
+  // FT-02-US-02：四栏看板分栏口径（顺序 = 待开始 → 进行中 → 搁置中 → 已完成）
+  const boardColumns: [string, string, typeof userProjects][] = [
+    ["todo", "待开始", todo],
+    ["in-progress", "进行中", inProgress],
+    ["on-hold", "搁置中", onHold],
+    ["completed", "已完成", completed],
+  ];
   const followingActivity = forumPosts
     .filter((post) => followingUsers.some((u) => u.id === post.authorId))
     .slice(0, 5);
@@ -198,7 +216,32 @@ export default function NotebookPage() {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
         {tab === "projects" && (
           <div>
-            <div className="flex justify-end mb-6">
+            <div className="flex items-center justify-between mb-6">
+              {/* FT-02-US-02：列表 / 看板视图切换器（默认列表，不记忆上次选择） */}
+              <div
+                className="flex rounded-lg p-1"
+                role="group"
+                aria-label="视图切换"
+                style={{ background: "var(--muted)" }}
+              >
+                {([
+                  ["list", "列表"],
+                  ["board", "看板"],
+                ] as [ViewMode, string][]).map(([mode, label]) => (
+                  <button
+                    key={mode}
+                    onClick={() => setViewMode(mode)}
+                    aria-pressed={viewMode === mode}
+                    className="px-3 py-1.5 text-sm font-medium rounded-md"
+                    style={{
+                      background: viewMode === mode ? "var(--card)" : "transparent",
+                      color: viewMode === mode ? "var(--primary)" : "var(--muted-foreground)",
+                    }}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
               <button
                 onClick={handleCreateEntryClick}
                 className="rounded-lg px-4 py-2 text-sm font-semibold"
@@ -223,12 +266,39 @@ export default function NotebookPage() {
                 />
               </div>
             )}
-            {createdProjects.length > 0 && (
+            {viewMode === "board" ? (
+              /* FT-02-US-02 AC-2：四栏看板，每个项目卡片落入其状态对应的栏 */
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-start">
+                {boardColumns.map(([status, label, columnProjects]) => (
+                  <div
+                    key={status}
+                    data-testid="board-column"
+                    className="rounded-xl p-3"
+                    style={{ background: "var(--muted)" }}
+                  >
+                    <h3
+                      className="text-sm font-bold mb-3"
+                      style={{ color: "var(--foreground)" }}
+                    >
+                      {label}
+                    </h3>
+                    <div className="space-y-3">
+                      {columnProjects.map((proj) => (
+                        <ProjectCard key={proj.id} project={proj} isOwner={isOwner} />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <>
+            {(createdProjects.length > 0 || todo.length > 0) && (
               <section className="mb-10">
                 <h2 className="text-xl font-bold mb-4" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
                   待开始
                 </h2>
                 <div className="space-y-4">
+                  {todo.map((proj) => <ProjectCard key={proj.id} project={proj} isOwner={isOwner} />)}
                   {createdProjects.map((project) => (
                     <div
                       key={project.id}
@@ -269,6 +339,16 @@ export default function NotebookPage() {
                 </div>
               </section>
             )}
+            {onHold.length > 0 && (
+              <section className="mb-10">
+                <h2 className="text-xl font-bold mb-4" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
+                  搁置中
+                </h2>
+                <div className="space-y-4">
+                  {onHold.map((proj) => <ProjectCard key={proj.id} project={proj} isOwner={isOwner} />)}
+                </div>
+              </section>
+            )}
             {completed.length > 0 && (
               <section>
                 <h2 className="text-xl font-bold mb-4" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
@@ -279,10 +359,21 @@ export default function NotebookPage() {
                 </div>
               </section>
             )}
-            {inProgress.length === 0 && completed.length === 0 && (
-              <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
-                还没有项目——先去图案库逛逛，挑一个想织的吧。
-              </p>
+            {createdProjects.length === 0 && userProjects.length === 0 && (
+              /* FT-02-US-02 AC-4：空状态引导（非空白页），创建入口见上方"新建项目"按钮 */
+              <div
+                className="rounded-xl p-8 text-center"
+                style={{ background: "var(--card)", border: "1.5px solid var(--border)" }}
+              >
+                <p className="text-base font-bold mb-1" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
+                  还没有编织项目
+                </p>
+                <p className="text-sm" style={{ color: "var(--muted-foreground)" }}>
+                  点击右上角"新建项目"，开始你的第一件作品吧。
+                </p>
+              </div>
+            )}
+              </>
             )}
           </div>
         )}
