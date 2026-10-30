@@ -50,6 +50,10 @@ class HomePage(BasePage):
         self.click(self.LOGIN_ENTRY_BUTTON)
         return self
 
+    def click_logout(self) -> "HomePage":
+        """点击导航栏登录态的"退出"按钮。"""
+        return self.click(self.LOGOUT_BUTTON)
+
     # ------------------------------------------------------------------
     # 断言（Then 步骤）
     # ------------------------------------------------------------------
@@ -67,6 +71,17 @@ class HomePage(BasePage):
         self.assert_element_visible(self.USER_DISPLAY_NAME)
         self.assert_element_text(self.USER_DISPLAY_NAME, display_name)
         return self.assert_element_visible(self.LOGOUT_BUTTON)
+
+    def assert_logged_out(self) -> "HomePage":
+        """断言导航栏恢复未登录态：displayName/退出按钮卸载、登录入口回归。
+
+        登出按钮卸载存在异步竞态（logout 触发 setState 重渲染），先等待
+        隐藏再断言，避免时序抖动导致的偶发失败。
+        """
+        self.wait_for_hidden(self.LOGOUT_BUTTON)
+        self.assert_element_not_visible(self.LOGOUT_BUTTON)
+        self.assert_element_not_visible(self.USER_DISPLAY_NAME)
+        return self.assert_login_entry_visible()
 
     def assert_user_profile_link(self, username: str) -> "HomePage":
         """断言导航栏用户入口链接指向个人页 /users/{username}（AuthContext username 出口）。"""

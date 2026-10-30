@@ -1,3 +1,261 @@
+@FT-01-US-02 @layer:api
+Feature: 用户登录 - API 层 # features/api/user-login.api.feature:3
+  作为一个已注册的织友，
+  我想要用用户名和密码登录，
+  以便进入我的个人空间并持续使用 KnitHub。
+  Background:   # features/api/user-login.api.feature:22
+
+  @api:contract @AC-1
+  Scenario: AC-1 接口契约 - 正确凭据登录成功返回用户信息并建立会话 Cookie  # features/api/user-login.api.feature:32
+    Given 请求基础地址为 "http://localhost:8080"           # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                             # steps/user_login_api_steps.py:59
+    And 存在如下注册用户                                    # steps/user_login_api_steps.py:72
+      | id | username     | password | display_name | avatar                                                                                      |
+      | 2  | woolenwhimsy | knit123  | Sarah Chen   | https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format |
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下      # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "woolenwhimsy",
+        "password": "knit123"
+      }
+      """
+    Then 响应状态码为 200                                 # steps/user_login_api_steps.py:135
+    And 返回如下用户信息                                    # steps/user_login_api_steps.py:141
+      """
+      {
+        "id": 2,
+        "username": "woolenwhimsy",
+        "displayName": "Sarah Chen",
+        "avatar": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format"
+      }
+      """
+    And 响应头 Set-Cookie 包含 "sid="                    # steps/user_login_api_steps.py:156
+    And 响应头 Set-Cookie 包含 "Path=/"                  # steps/user_login_api_steps.py:156
+    And 响应头 Set-Cookie 包含 "HttpOnly"                # steps/user_login_api_steps.py:156
+    And 响应头 Set-Cookie 包含 "SameSite=Lax"            # steps/user_login_api_steps.py:156
+    And 响应头 Set-Cookie 包含 "Max-Age=604800"          # steps/user_login_api_steps.py:156
+
+  @api:contract @AC-1
+  Scenario: AC-1 接口契约 - 用户名大小写变体登录成功且响应返回存储态用户名  # features/api/user-login.api.feature:64
+    Given 请求基础地址为 "http://localhost:8080"        # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                          # steps/user_login_api_steps.py:59
+    And 存在如下注册用户                                 # steps/user_login_api_steps.py:72
+      | id | username     | password | display_name | avatar                                                                                      |
+      | 2  | woolenwhimsy | knit123  | Sarah Chen   | https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format |
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下   # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "WoolenWhimsy",
+        "password": "knit123"
+      }
+      """
+    Then 响应状态码为 200                              # steps/user_login_api_steps.py:135
+    And 返回如下用户信息                                 # steps/user_login_api_steps.py:141
+      """
+      {
+        "id": 2,
+        "username": "woolenwhimsy",
+        "displayName": "Sarah Chen",
+        "avatar": "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format"
+      }
+      """
+
+  @api:error @AC-2
+  Scenario: AC-2 错误码 - 密码错误返回 401 统一提示         # features/api/user-login.api.feature:93
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                        # steps/user_login_api_steps.py:59
+    And 存在如下注册用户                               # steps/user_login_api_steps.py:72
+      | id | username     | password | display_name | avatar                                                                                      |
+      | 2  | woolenwhimsy | knit123  | Sarah Chen   | https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format |
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下 # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "woolenwhimsy",
+        "password": "wool456"
+      }
+      """
+    Then 响应状态码为 401                            # steps/user_login_api_steps.py:135
+    And 返回如下错误信息                               # steps/user_login_api_steps.py:165
+      """
+      {
+        "message": "用户名或密码错误"
+      }
+      """
+
+  @api:error @AC-2
+  Scenario: AC-2 错误码 - 用户名不存在返回与密码错误完全一致的 401 响应  # features/api/user-login.api.feature:118
+    Given 请求基础地址为 "http://localhost:8080"         # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                           # steps/user_login_api_steps.py:59
+    And 存在如下注册用户                                  # steps/user_login_api_steps.py:72
+      | id | username     | password | display_name | avatar                                                                                      |
+      | 2  | woolenwhimsy | knit123  | Sarah Chen   | https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&auto=format |
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下    # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "ghostweaver",
+        "password": "anything123"
+      }
+      """
+    Then 响应状态码为 401                               # steps/user_login_api_steps.py:135
+    And 返回如下错误信息                                  # steps/user_login_api_steps.py:165
+      """
+      {
+        "message": "用户名或密码错误"
+      }
+      """
+
+  @api:boundary @AC-3
+  Scenario: AC-3 字段边界 - 绕过前端直接调用后端时 username 为空字符串  # features/api/user-login.api.feature:144
+    Given 请求基础地址为 "http://localhost:8080"           # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                             # steps/user_login_api_steps.py:59
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下      # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "",
+        "password": "knit123"
+      }
+      """
+    Then 响应状态码为 400                                 # steps/user_login_api_steps.py:135
+
+  @api:boundary @AC-3
+  Scenario: AC-3 字段边界 - username 为纯空格          # features/api/user-login.api.feature:159
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                        # steps/user_login_api_steps.py:59
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下 # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "   ",
+        "password": "knit123"
+      }
+      """
+    Then 响应状态码为 400                            # steps/user_login_api_steps.py:135
+
+  @api:boundary @AC-3
+  Scenario: AC-3 字段边界 - 绕过前端直接调用后端时 password 为空字符串  # features/api/user-login.api.feature:174
+    Given 请求基础地址为 "http://localhost:8080"           # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                             # steps/user_login_api_steps.py:59
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下      # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "woolenwhimsy",
+        "password": ""
+      }
+      """
+    Then 响应状态码为 400                                 # steps/user_login_api_steps.py:135
+
+  @api:boundary @AC-3
+  Scenario: AC-3 字段边界 - 请求体缺失 password 字段      # features/api/user-login.api.feature:189
+    Given 请求基础地址为 "http://localhost:8080"      # steps/user_login_api_steps.py:46
+    Given 请求认证状态为 "未登录"                        # steps/user_login_api_steps.py:59
+    When 发送 POST 请求 "/api/v1/auth/login"，请求体如下 # steps/user_login_api_steps.py:122
+      """
+      {
+        "username": "woolenwhimsy"
+      }
+      """
+    Then 响应状态码为 400                            # steps/user_login_api_steps.py:135
+
+@FT-01-US-03-M02 @layer:e2e
+Feature: 恢复期 Navbar 防闪烁 # features/ui/navbar-no-flicker.feature:11
+  作为一个已登录的织友，
+  我想要页面刷新恢复登录态期间，导航栏不闪现"登录 / 注册"按钮，
+  以便确认系统记住了我的登录状态，不产生"需要重新登录"的错觉。
+  Background:   # features/ui/navbar-no-flicker.feature:17
+
+  @AC-1
+  Scenario: AC-1 恢复完成前 Navbar 不渲染"登录 / 注册"按钮   # features/ui/navbar-no-flicker.feature:27
+    Given 系统中存在如下注册用户：                         # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    And 用户处于未登录状态，正在浏览首页 "/"                   # steps/user_login_ui_steps.py:97
+    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗  # steps/user_login_ui_steps.py:141
+    And 在"用户名"输入框输入 "woolenwhimsy"             # steps/user_login_ui_steps.py:153
+    And 在"密码"输入框输入 "knit123"                   # steps/user_login_ui_steps.py:159
+    And 点击"登 录"按钮                              # steps/user_login_ui_steps.py:165
+    Then 登录弹窗关闭，标题"欢迎回来"不再显示                   # steps/user_login_ui_steps.py:187
+    When 会话恢复查询被挂起（模拟恢复期间）                     # steps/navbar_no_flicker_steps.py:45
+    And 用户刷新页面                                 # steps/navbar_no_flicker_steps.py:53
+    Then 恢复完成前导航栏既不渲染"登录 / 注册"按钮，也不渲染用户态       # steps/navbar_no_flicker_steps.py:85
+    When 恢复查询返回                                # steps/navbar_no_flicker_steps.py:67
+    Then 导航栏显示用户名"Sarah Chen"，全程"登录 / 注册"按钮零闪现 # steps/navbar_no_flicker_steps.py:107
+
+  @AC-2
+  Scenario: AC-2 游客态在恢复查询完成后正常显示"登录 / 注册"按钮  # features/ui/navbar-no-flicker.feature:42
+    Given 系统中存在如下注册用户：                       # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    And 用户处于未登录状态，正在浏览首页 "/"                 # steps/user_login_ui_steps.py:97
+    When 会话恢复查询被挂起（模拟恢复期间）                   # steps/navbar_no_flicker_steps.py:45
+    And 用户刷新页面                               # steps/navbar_no_flicker_steps.py:53
+    Then 恢复完成前导航栏既不渲染"登录 / 注册"按钮，也不渲染用户态     # steps/navbar_no_flicker_steps.py:85
+    When 恢复查询返回（未登录，/me 返回 401）              # steps/navbar_no_flicker_steps.py:76
+    Then 导航栏正常显示"登录 / 注册"按钮（游客态不永久空白）        # steps/navbar_no_flicker_steps.py:114
+
+@FT-01-US-03-M01 @layer:e2e
+Feature: 会话恢复骨架 # features/ui/session-restore.feature:14
+  作为一个已登录的织友，
+  我想要刷新页面或重开浏览器后，页面加载时自动恢复我的登录态，
+  以便不被打断地持续使用 KnitHub，无需重新输入用户名密码。
+  Background:   # features/ui/session-restore.feature:20
+
+  @AC-1
+  Scenario: AC-1 登录后连续刷新页面 3 次均保持登录态              # features/ui/session-restore.feature:29
+    Given 系统中存在如下注册用户：                            # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    And 用户处于未登录状态，正在浏览首页 "/"                      # steps/user_login_ui_steps.py:97
+    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗     # steps/user_login_ui_steps.py:141
+    And 在"用户名"输入框输入 "woolenwhimsy"                # steps/user_login_ui_steps.py:153
+    And 在"密码"输入框输入 "knit123"                      # steps/user_login_ui_steps.py:159
+    And 点击"登 录"按钮                                 # steps/user_login_ui_steps.py:165
+    Then 登录弹窗关闭，标题"欢迎回来"不再显示                      # steps/user_login_ui_steps.py:187
+    When 用户连续刷新页面 3 次                             # steps/session_restore_ui_steps.py:28
+    Then 每次页面加载完成后导航栏均显示用户名"Sarah Chen"，全程未出现登录弹窗 # steps/session_restore_ui_steps.py:92
+
+  @AC-2
+  Scenario: AC-2 重开浏览器后保持登录态                      # features/ui/session-restore.feature:43
+    Given 系统中存在如下注册用户：                            # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    And 用户处于未登录状态，正在浏览首页 "/"                      # steps/user_login_ui_steps.py:97
+    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗     # steps/user_login_ui_steps.py:141
+    And 在"用户名"输入框输入 "woolenwhimsy"                # steps/user_login_ui_steps.py:153
+    And 在"密码"输入框输入 "knit123"                      # steps/user_login_ui_steps.py:159
+    And 点击"登 录"按钮                                 # steps/user_login_ui_steps.py:165
+    Then 登录弹窗关闭，标题"欢迎回来"不再显示                      # steps/user_login_ui_steps.py:187
+    When 用户关闭浏览器                                  # steps/session_restore_ui_steps.py:56
+    And 重新打开浏览器访问首页                               # steps/session_restore_ui_steps.py:68
+    Then 直接处于登录态，导航栏显示用户名"Sarah Chen"，无需重新输入用户名密码 # steps/session_restore_ui_steps.py:84
+
+  @AC-3
+  Scenario: AC-3 登录态下 AuthContext 恢复当前用户上下文（username/displayName/avatar）  # features/ui/session-restore.feature:57
+    Given 系统中存在如下注册用户：                                                    # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    And 用户处于未登录状态，正在浏览首页 "/"                                              # steps/user_login_ui_steps.py:97
+    When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗                             # steps/user_login_ui_steps.py:141
+    And 在"用户名"输入框输入 "woolenwhimsy"                                        # steps/user_login_ui_steps.py:153
+    And 在"密码"输入框输入 "knit123"                                              # steps/user_login_ui_steps.py:159
+    And 点击"登 录"按钮                                                         # steps/user_login_ui_steps.py:165
+    Then 登录弹窗关闭，标题"欢迎回来"不再显示                                              # steps/user_login_ui_steps.py:187
+    When 用户连续刷新页面 1 次                                                     # steps/session_restore_ui_steps.py:28
+    Then 每次页面加载完成后导航栏均显示用户名"Sarah Chen"，全程未出现登录弹窗                         # steps/session_restore_ui_steps.py:92
+    And 刷新恢复后导航栏展示当前用户上下文：                                                # steps/session_restore_ui_steps.py:156
+      | 字段   | 值                                |
+      | 显示名称 | Sarah Chen                       |
+      | 用户名  | woolenwhimsy                     |
+      | 头像   | photo-1438761681033-6461ffad8d80 |
+
+  @AC-3
+  Scenario: AC-3 未登录访问首页为游客态且无任何错误提示              # features/ui/session-restore.feature:75
+    Given 系统中存在如下注册用户：                            # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    And 用户处于未登录状态，正在浏览首页 "/"                      # steps/user_login_ui_steps.py:97
+    When 页面重新加载（未登录，/me 返回 401）                   # steps/session_restore_ui_steps.py:113
+    Then 导航栏显示"登录 / 注册"按钮（游客态，currentUser 为 null） # steps/session_restore_ui_steps.py:130
+    And 页面无任何错误提示（401 静默处理，未向用户报错）                # steps/session_restore_ui_steps.py:136
+
 @FT-01-US-02 @layer:e2e
 Feature: 用户登录 # features/ui/user-login.feature:13
   作为一个已注册的织友，
@@ -59,53 +317,10 @@ Feature: 用户登录 # features/ui/user-login.feature:13
     When 用户点击导航栏的"登录 / 注册"按钮，打开标题为"欢迎回来"的登录弹窗 # steps/user_login_ui_steps.py:141
     And 在"用户名"输入框输入 "ghostweaver"             # steps/user_login_ui_steps.py:153
     And 在"密码"输入框输入 "anything123"              # steps/user_login_ui_steps.py:159
-      Traceback (most recent call last):
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/behave/model.py", line 1329, in run
-          match.run(runner.context)
-          ~~~~~~~~~^^^^^^^^^^^^^^^^
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/behave/matchers.py", line 98, in run
-          self.func(context, *args, **kwargs)
-          ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^
-        File "steps/user_login_ui_steps.py", line 162, in step_fill_password
-          context.login_modal.fill_password(password)
-          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^
-        File "/Users/nebula/repo/zhijian/test-automation/pages/login_modal.py", line 57, in fill_password
-          return self.fill(self.PASSWORD_INPUT, password)
-                 ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        File "/Users/nebula/repo/zhijian/test-automation/pages/base_page.py", line 94, in fill
-          self.wait.wait_for_element_visible(self.page, selector, timeout)
-          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        File "/Users/nebula/repo/zhijian/test-automation/core/wait_utils.py", line 37, in wait_for_element_visible
-          locator.wait_for(state="visible", timeout=WaitUtils._timeout(timeout))
-          ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/sync_api/_generated.py", line 17843, in wait_for
-          self._sync(self._impl_obj.wait_for(timeout=timeout, state=state))
-          ~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_sync_base.py", line 115, in _sync
-          return task.result()
-                 ~~~~~~~~~~~^^
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_locator.py", line 679, in wait_for
-          await self._frame.wait_for_selector(
-              self._selector, strict=True, timeout=timeout, state=state
-          )
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_frame.py", line 323, in wait_for_selector
-          await self._channel.send("waitForSelector", locals_to_params(locals()))
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py", line 61, in send
-          return await self._connection.wrap_api_call(
-                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-          ...<2 lines>...
-          )
-          ^
-        File "/Users/nebula/repo/zhijian/test-automation/.venv/lib/python3.13/site-packages/playwright/_impl/_connection.py", line 528, in wrap_api_call
-          raise rewrite_error(error, f"{parsed_st['apiName']}: {error}") from None
-      playwright._impl._errors.TimeoutError: Locator.wait_for: Timeout 30000ms exceeded.
-      Call log:
-        - waiting for locator("div.fixed.inset-0 form input[type=\"password\"]").first to be visible
-
-    And 点击"登 录"按钮                             # None
-    Then 登录弹窗保持打开，弹窗内显示提示信息"用户名或密码错误"         # None
-    And 提示信息不包含"用户不存在"字样                      # None
-    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # None
+    And 点击"登 录"按钮                             # steps/user_login_ui_steps.py:165
+    Then 登录弹窗保持打开，弹窗内显示提示信息"用户名或密码错误"         # steps/user_login_ui_steps.py:246
+    And 提示信息不包含"用户不存在"字样                      # steps/user_login_ui_steps.py:253
+    And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
 
   @AC-3
   Scenario: AC-3 用户名留空时前端必填校验                 # features/ui/user-login.feature:74
@@ -134,4 +349,31 @@ Feature: 用户登录 # features/ui/user-login.feature:13
     Then 登录弹窗保持打开，弹窗内显示提示信息"请输入密码"            # steps/user_login_ui_steps.py:246
     And 未向后端发出登录请求                            # steps/user_login_ui_steps.py:266
     And 导航栏仍显示"登录 / 注册"按钮，页面停留在首页 "/"         # steps/user_login_ui_steps.py:259
+
+@FT-01-US-04 @layer:e2e
+Feature: 用户登出 # features/ui/user-logout.feature:15
+  作为一个已登录的织友，
+  我想要主动退出登录，
+  以便在共用设备上使用后保护我的账号安全。
+  Background:   # features/ui/user-logout.feature:21
+
+  @AC-1
+  Scenario: AC-1 点击"退出"后界面恢复未登录态                                  # features/ui/user-logout.feature:29
+    Given 系统中存在如下注册用户：                                            # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    Given 用户已通过 UI 登录为 "woolenwhimsy"，导航栏显示用户名"Sarah Chen"与"退出"按钮 # steps/user_logout_ui_steps.py:33
+    When 用户点击导航栏的"退出"按钮                                           # steps/user_logout_ui_steps.py:61
+    Then 导航栏不再显示"Sarah Chen"与"退出"按钮，恢复显示"登录 / 注册"按钮               # steps/user_logout_ui_steps.py:75
+    And 前端已向后端发出登出请求 "/api/v1/auth/logout"                        # steps/user_logout_ui_steps.py:82
+
+  @AC-2
+  Scenario: AC-2 登出为真实销毁会话而非仅清前端态                                 # features/ui/user-logout.feature:38
+    Given 系统中存在如下注册用户：                                            # steps/user_login_ui_steps.py:56
+      | username     | password | displayName |
+      | woolenwhimsy | knit123  | Sarah Chen  |
+    Given 用户已通过 UI 登录为 "woolenwhimsy"，导航栏显示用户名"Sarah Chen"与"退出"按钮 # steps/user_logout_ui_steps.py:33
+    When 用户点击导航栏的"退出"按钮                                           # steps/user_logout_ui_steps.py:61
+    And 用户刷新页面                                                    # steps/navbar_no_flicker_steps.py:53
+    Then 导航栏恢复显示"登录 / 注册"按钮（旧会话已失效，刷新不再恢复登录态）                     # steps/user_logout_ui_steps.py:96
 

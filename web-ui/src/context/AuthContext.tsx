@@ -19,14 +19,15 @@ interface AuthContextType {
    */
   initialized: boolean;
   login: (username: string, password: string) => Promise<User | null>;
-  logout: () => void;
+  /** 登出：销毁服务端会话并清前端态（异步，调用方无需等待）。 */
+  logout: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
   initialized: false,
   login: async () => null,
-  logout: () => {},
+  logout: async () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -70,8 +71,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }
 
-  // TODO FT-01-US-04: 登出调后端销毁会话；当前仅清前端态
-  function logout() {
+  /**
+   * 登出（FT-01-US-04）：先调后端 POST /api/v1/auth/logout 销毁服务端会话
+   * （HttpOnly Cookie sid 随响应清除），再清前端用户上下文——顺序保证登出
+   * 返回后旧会话在服务端已失效，刷新不会再恢复登录态（AC-2 防假登出）。
+   * 请求异常时仍清前端态（界面恢复未登录态优先）。
+   */
+  async function logout(): Promise<void> {
+    try {
+      await fetch("/api/v1/auth/logout", { method: "POST" });
+    } catch {
+      // 网络异常不阻断登出，前端态照常恢复未登录
+    }
     setCurrentUser(null);
   }
 

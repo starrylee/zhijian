@@ -77,6 +77,14 @@ public class AuthService {
         return new LoginResult(user, sid);
     }
 
+    /**
+     * 登出并销毁会话（FT-01-US-04）：sid 无效或缺失时同样安全返回
+     * （幂等——重复登出/伪造 sid 均不报错，界面恢复未登录态）。
+     */
+    public void logout(String sid) {
+        sessionManager.invalidate(sid);
+    }
+
     private Long nextId() {
         return userRepository.findAll().stream()
                 .map(User::getId)

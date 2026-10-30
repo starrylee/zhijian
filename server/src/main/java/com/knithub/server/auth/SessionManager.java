@@ -45,5 +45,13 @@ public class SessionManager {
         return Optional.ofNullable(sessions.get(sid));
     }
 
-    // TODO FT-01-US-04: invalidate(sid)——登出销毁会话
+    /**
+     * 销毁会话（FT-01-US-04 登出）：sid 从存储中移除，此后 getUserId 一律
+     * 返回 empty——登出即失效，旧会话不可复用（AC-2）。
+     */
+    public void invalidate(String sid) {
+        if (sid != null) {
+            sessions.remove(sid);
+        }
+    }
 }

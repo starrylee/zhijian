@@ -89,6 +89,26 @@ public class AuthController {
                 .body(UserResponse.from(result.user()));
     }
 
+    /**
+     * 登出（FT-01-US-04）：销毁服务端会话（AC-2）并清除浏览器 Cookie sid
+     * （Max-Age=0），界面恢复未登录态（AC-1）。
+     *
+     * <p>幂等：sid 缺失/无效同样 204，不报错。
+     */
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(@CookieValue(value = "sid", required = false) String sid) {
+        authService.logout(sid);
+        ResponseCookie cookie = ResponseCookie.from("sid", "")
+                .httpOnly(true)
+                .sameSite("Lax")
+                .maxAge(Duration.ZERO)
+                .path("/")
+                .build();
+        return ResponseEntity.noContent()
+                .header(HttpHeaders.SET_COOKIE, cookie.toString())
+                .build();
+    }
+
     @ExceptionHandler(AuthService.InvalidCredentialsException.class)
     public ResponseEntity<Map<String, String>> handleInvalidCredentials(AuthService.InvalidCredentialsException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
@@ -120,5 +140,4 @@ public class AuthController {
 
     // TODO FT-01-US-01: POST /api/v1/auth/register（注册；重复用户名 → 409）
     // TODO FT-01-US-03: GET /api/v1/auth/me（会话恢复，刷新不掉登录态）
-    // TODO FT-01-US-04: POST /api/v1/auth/logout（登出销毁会话）
 }
