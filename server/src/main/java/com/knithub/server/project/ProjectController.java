@@ -3,12 +3,15 @@ package com.knithub.server.project;
 import com.knithub.server.auth.SessionManager;
 import com.knithub.server.project.dto.CreateProjectRequest;
 import com.knithub.server.project.dto.ProjectResponse;
+import com.knithub.server.project.dto.UpdateStatusRequest;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CookieValue;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -52,6 +55,17 @@ public class ProjectController {
                 .toList());
     }
 
+    /** FT-02-US-03 AC-1/AC-2：看板拖拽切换状态（4×4 自由互切）。 */
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<ProjectResponse> changeStatus(
+            @CookieValue(value = "sid", required = false) String sid,
+            @PathVariable Long id,
+            @Valid @RequestBody UpdateStatusRequest request) {
+        Long userId = requireUserId(sid);
+        return ResponseEntity.ok(
+                ProjectResponse.from(projectService.changeStatus(userId, id, request.getStatus())));
+    }
+
     private Long requireUserId(String sid) {
         return sessionManager.getUserId(sid)
                 .orElseThrow(NotLoggedInException::new);
@@ -65,6 +79,13 @@ public class ProjectController {
     public ResponseEntity<Map<String, String>> handleNotLoggedIn(NotLoggedInException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
                 .body(Map.of("message", "请先登录"));
+    }
+
+    /** 项目不归属当前会话用户 → 403（FT-02-US-03 AC-3 越权拒绝）。 */
+    @ExceptionHandler(ProjectService.NotProjectOwnerException.class)
+    public ResponseEntity<Map<String, String>> handleNotProjectOwner(ProjectService.NotProjectOwnerException e) {
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of("message", "无权操作该项目"));
     }
 
     /** 请求参数校验失败 → 400 + 第一条校验消息（AC-3/AC-4，与 FT-01 约定一致）。 */

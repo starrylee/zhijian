@@ -30,8 +30,26 @@ public class JsonProjectRepository implements ProjectRepository {
     @Override
     public void save(Project project) {
         List<Project> projects = new ArrayList<>(store.readAll());
-        projects.add(project);
+        int index = -1;
+        for (int i = 0; i < projects.size(); i++) {
+            if (project.getId() != null && project.getId().equals(projects.get(i).getId())) {
+                index = i;
+                break;
+            }
+        }
+        if (index >= 0) {
+            projects.set(index, project);
+        } else {
+            projects.add(project);
+        }
         store.writeAll(projects);
+    }
+
+    @Override
+    public java.util.Optional<Project> findById(Long id) {
+        return store.readAll().stream()
+                .filter(project -> project.getId().equals(id))
+                .findFirst();
     }
 
     @Override

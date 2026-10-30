@@ -88,6 +88,8 @@ const fetchMock = vi.fn();
 beforeEach(() => {
   vi.stubGlobal("fetch", fetchMock);
   fetchMock.mockReset();
+  // FT-02-US-03 起，本人页面挂载时拉取后端项目（默认空列表，不影响 mock 场景）
+  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => [] } as Response);
   mocks.users.length = 0;
   mocks.projects.length = 0;
 });

@@ -47,6 +47,30 @@ public class ProjectService {
         return projectRepository.findByUserId(userId);
     }
 
+    /**
+     * FT-02-US-03 状态切换：4×4 自由互切（含"已完成→待开始"重开），无方向约束。
+     * 项目不存在或不归属当前用户 → 异常由控制器翻译为 404/403（AC-3）。
+     */
+    public Project changeStatus(Long userId, Long projectId, String status) {
+        Project project = projectRepository.findById(projectId)
+                .orElseThrow(ProjectNotFoundException::new);
+        if (!project.getUserId().equals(userId)) {
+            throw new NotProjectOwnerException();
+        }
+        project.setStatus(status);
+        project.setLastActiveAt(Instant.now().toString());
+        projectRepository.save(project);
+        return project;
+    }
+
+    /** 项目不存在（或不便区分的场景统一归并）→ 404。 */
+    static class ProjectNotFoundException extends RuntimeException {
+    }
+
+    /** 项目不归属当前会话用户 → 403（AC-3）。 */
+    static class NotProjectOwnerException extends RuntimeException {
+    }
+
     private List<Milestone> buildMilestones(CreateProjectRequest request) {
         List<Milestone> milestones = new ArrayList<>();
         long id = 1;

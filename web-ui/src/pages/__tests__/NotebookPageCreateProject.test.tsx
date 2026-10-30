@@ -34,6 +34,8 @@ describe("NotebookPage 新建项目入口", () => {
   beforeEach(() => {
     vi.stubGlobal("fetch", fetchMock);
     fetchMock.mockReset();
+    // FT-02-US-03 起，已登录本人页面挂载时拉取后端项目（默认空列表）
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => [] } as Response);
   });
 
   afterEach(() => {

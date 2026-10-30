@@ -46,6 +46,21 @@ export default function NotebookPage() {
   // FT-02-US-02：项目 Tab 视图切换（默认列表视图）
   const [viewMode, setViewMode] = useState<ViewMode>("list");
 
+  // FT-02-US-03：本人后端项目（状态切换的持久化载体，看板拖拽数据源）
+  interface BackendProject {
+    id: number;
+    name: string;
+    dueDate: string;
+    status: string;
+    isPublic: boolean;
+    milestones: unknown[];
+    createdAt: string;
+    lastActiveAt: string;
+  }
+  const [backendProjects, setBackendProjects] = useState<BackendProject[]>([]);
+  const [draggingProjectId, setDraggingProjectId] = useState<number | null>(null);
+  const [statusSwitchError, setStatusSwitchError] = useState<string | null>(null);
+
   // FT-01 兜底（PO 裁定 2026-09-07）：后端真实账号（种子 zhinv / 新注册用户）不在 mock
   // user-list.json 中，个人页以当前登录用户的身份兜底渲染，项目/库存等列表自然为空，
   // 展示空状态即可（匹配大小写不敏感，对齐 FT-01 决策 1/4 口径）。
@@ -83,6 +98,48 @@ export default function NotebookPage() {
   // FT-01-US-02: 登录态改由后端会话供给（id 为 number 自增），mock 数据仍为字符串 id
   // 体系——owner 判定用 username（两个世界一致的主键）保持行为不变
   const isOwner = currentUser?.username === pageUser.username;
+
+  // FT-02-US-03：本人后端项目（状态切换的持久化载体，看板拖拽数据源）
+  useEffect(() => {
+    if (!isOwner) {
+      return;
+    }
+    let cancelled = false;
+    fetch("/api/v1/projects")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const body = await response.json();
+        if (!cancelled) setBackendProjects(Array.isArray(body) ? body : []);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isOwner]);
+
+  // FT-02-US-03 AC-1/AC-2：拖拽落栏 → PATCH 状态（4×4 自由互切）
+  function handleDropOnColumn(status: string) {
+    const projectId = draggingProjectId;
+    setDraggingProjectId(null);
+    if (projectId == null) return;
+    fetch(`/api/v1/projects/${projectId}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    })
+      .then(async (response) => {
+        if (!response.ok) {
+          const body = await response.json().catch(() => null);
+          setStatusSwitchError(body?.message ?? "状态切换失败，请稍后重试");
+          return;
+        }
+        setStatusSwitchError(null);
+        setBackendProjects((prev) =>
+          prev.map((p) => (p.id === projectId ? { ...p, status } : p))
+        );
+      })
+      .catch(() => setStatusSwitchError("网络异常，请稍后重试"));
+  }
 
   // FT-02-US-01 AC-5：未登录点击入口 → 登录弹窗（成功后续接打开表单）
   function handleCreateEntryClick() {
@@ -268,6 +325,12 @@ export default function NotebookPage() {
             )}
             {viewMode === "board" ? (
               /* FT-02-US-02 AC-2：四栏看板，每个项目卡片落入其状态对应的栏 */
+              <div>
+              {statusSwitchError && (
+                <p role="alert" className="text-sm mb-4" style={{ color: "#B3402A" }}>
+                  {statusSwitchError}
+                </p>
+              )}
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 items-start">
                 {boardColumns.map(([status, label, columnProjects]) => (
                   <div
@@ -275,6 +338,8 @@ export default function NotebookPage() {
                     data-testid="board-column"
                     className="rounded-xl p-3"
                     style={{ background: "var(--muted)" }}
+                    onDragOver={(e) => e.preventDefault()}
+                    onDrop={() => handleDropOnColumn(status)}
                   >
                     <h3
                       className="text-sm font-bold mb-3"
@@ -286,9 +351,36 @@ export default function NotebookPage() {
                       {columnProjects.map((proj) => (
                         <ProjectCard key={proj.id} project={proj} isOwner={isOwner} />
                       ))}
+                      {/* FT-02-US-03：本人后端项目卡片（可拖拽切换状态） */}
+                      {backendProjects
+                        .filter((p) => p.status === status)
+                        .map((p) => (
+                          <div
+                            key={p.id}
+                            draggable
+                            onDragStart={() => setDraggingProjectId(p.id)}
+                            onDragEnd={() => setDraggingProjectId(null)}
+                            className="rounded-xl p-4 cursor-grab"
+                            style={{
+                              background: "var(--card)",
+                              border: "1.5px solid var(--border)",
+                            }}
+                          >
+                            <div className="flex items-center justify-between gap-2">
+                              <h3
+                                className="font-bold text-base"
+                                style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}
+                              >
+                                {p.name}
+                              </h3>
+                              <StatusPill status={p.status} />
+                            </div>
+                          </div>
+                        ))}
                     </div>
                   </div>
                 ))}
+              </div>
               </div>
             ) : (
               <>
@@ -308,16 +400,7 @@ export default function NotebookPage() {
                       <h3 className="font-bold text-base" style={{ fontFamily: "Lora, serif", color: "var(--foreground)" }}>
                         {project.name}
                       </h3>
-                      <span
-                        className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                        style={{
-                          background: statusColors.todo + "22",
-                          color: statusColors.todo,
-                          border: `1px solid ${statusColors.todo}44`,
-                        }}
-                      >
-                        {statusLabels.todo}
-                      </span>
+                      <StatusPill status="todo" />
                     </div>
                   ))}
                 </div>
@@ -530,6 +613,23 @@ export default function NotebookPage() {
   );
 }
 
+/** FT-02-US-03 重构提取：状态 pill（文案 + 三段式配色），三处卡片共用。 */
+function StatusPill({ status }: { status: string }) {
+  const color = statusColors[status];
+  return (
+    <span
+      className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
+      style={{
+        background: color + "22",
+        color,
+        border: `1px solid ${color}44`,
+      }}
+    >
+      {statusLabels[status]}
+    </span>
+  );
+}
+
 function ProjectCard({ project, isOwner }: { project: (typeof projectsData)[number]; isOwner: boolean }) {
   const pattern = patterns.find((p) => p.id === project.patternId);
 
@@ -556,16 +656,7 @@ function ProjectCard({ project, isOwner }: { project: (typeof projectsData)[numb
             >
               {project.patternName}
             </h3>
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded-full shrink-0"
-              style={{
-                background: statusColors[project.status] + "22",
-                color: statusColors[project.status],
-                border: `1px solid ${statusColors[project.status]}44`,
-              }}
-            >
-              {statusLabels[project.status]}
-            </span>
+            <StatusPill status={project.status} />
           </div>
           <p className="text-xs mb-2" style={{ color: "var(--muted-foreground)" }}>
             尺码: {project.size} · 针号: {project.needleSize}
