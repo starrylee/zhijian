@@ -155,14 +155,16 @@ export default function NewProjectForm({ onSuccess }: NewProjectFormProps) {
         </p>
       )}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="rounded-lg px-4 py-2 font-semibold"
-        style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
-      >
-        创建项目
-      </button>
+      <div className="flex justify-center">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="rounded-lg px-4 py-2 font-semibold"
+          style={{ background: "var(--primary)", color: "var(--primary-foreground)" }}
+        >
+          创建项目
+        </button>
+      </div>
     </form>
   );
 }
