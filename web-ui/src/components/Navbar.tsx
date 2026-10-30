@@ -12,7 +12,7 @@ const navLinks = [
 ];
 
 export default function Navbar() {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, initialized, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
@@ -80,7 +80,9 @@ export default function Navbar() {
 
           {/* Auth area */}
           <div className="flex items-center gap-3">
-            {currentUser ? (
+            {/* 恢复期第三态（FT-01-US-03-M02）：会话恢复查询未返回前
+                既不渲染"登录 / 注册"也不渲染用户态，消除游客按钮闪现 */}
+            {initialized && currentUser ? (
               <div className="flex items-center gap-2">
                 <Link
                   to={`/users/${currentUser.username}`}
@@ -106,7 +108,7 @@ export default function Navbar() {
                   退出
                 </button>
               </div>
-            ) : (
+            ) : initialized ? (
               <button
                 onClick={() => setShowLogin(true)}
                 className="px-4 py-1.5 rounded-lg text-sm font-semibold transition-opacity hover:opacity-90"
@@ -114,7 +116,7 @@ export default function Navbar() {
               >
                 登录 / 注册
               </button>
-            )}
+            ) : null}
 
             {/* Mobile menu button */}
             <button

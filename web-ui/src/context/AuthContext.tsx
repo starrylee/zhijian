@@ -12,30 +12,39 @@ export interface User {
 
 interface AuthContextType {
   currentUser: User | null;
+  /**
+   * 会话恢复是否完成（FT-01-US-03-M02）：恢复查询返回即 true
+   * （无论 200 还是 401）。false 期间为第三态——既不是游客也不是
+   * 已登录，Navbar 据此推迟登录区渲染、消除"登录 / 注册"闪现。
+   */
+  initialized: boolean;
   login: (username: string, password: string) => Promise<User | null>;
   logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
   currentUser: null,
+  initialized: false,
   login: async () => null,
   logout: () => {},
 });
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [initialized, setInitialized] = useState(false);
 
   /**
    * 启动会话恢复（FT-01-US-03-M01）：应用加载时凭 Cookie sid 调
    * GET /api/v1/auth/me 恢复登录态，刷新/重开浏览器不掉线。
    * 401 是正常态（未登录游客），静默按 null 处理、不向用户报错；
-   * 恢复完成前 Navbar 短暂闪现"登录 / 注册"由 M02 消除。
+   * 查询返回即置 initialized（M02：Navbar 恢复期不闪现"登录 / 注册"）。
    */
   useEffect(() => {
     fetch("/api/v1/auth/me")
       .then((res) => (res.ok ? res.json() : null))
       .then((user: User | null) => setCurrentUser(user))
-      .catch(() => setCurrentUser(null));
+      .catch(() => setCurrentUser(null))
+      .finally(() => setInitialized(true));
   }, []);
 
   /**
@@ -67,7 +76,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ currentUser, login, logout }}>
+    <AuthContext.Provider value={{ currentUser, initialized, login, logout }}>
       {children}
     </AuthContext.Provider>
   );
